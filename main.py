@@ -7,8 +7,6 @@ WIDTH, HEIGHT = 1200, 800
 
 black = (0, 0, 0)
 white = (255, 255, 255)
-grey = (200, 200, 200)
-darkgrey = (20, 20, 20)
 red = (255, 0, 0)
 blue = (0, 0, 255)
 green = (0, 255, 0)
@@ -24,6 +22,7 @@ fps = 60
 beats = 8
 instruments = ["Kick", "Snare", "Hi-Hat", "Bass Drum", "Crash"]
 timer = pygame.time.Clock()
+clicked_boxes = [[ -1 for _ in range(beats)] for _ in range(len(instruments))]
 
 def draw_grid():
     lbox_width = 250    
@@ -40,14 +39,14 @@ def draw_grid():
     row_hight = lbox_height // len(instruments)
     col_width = (WIDTH - lbox_width) // beats
 
-    for idx,sound in enumerate(instruments):
-        text = label_font.render(instruments[idx], True, green)
-        screen.blit(text, (30, idx*row_hight+30))
-        pygame.draw.line(screen, white, (0, idx*row_hight), (250, idx*row_hight), 5)
+    for j in range(len(instruments)):
+        text = label_font.render(instruments[j], True, green)
+        screen.blit(text, (30, j*row_hight+30))
+        pygame.draw.line(screen, white, (0, j*row_hight), (250, j*row_hight), 5)
 
         for i in range(beats):
-            rect = pygame.draw.rect(screen, light_grey, [lbox_width+i*col_width, idx*row_hight, col_width, row_hight], 5)
-            boxes.append((rect,(idx, i)))
+            rect = pygame.draw.rect(screen, light_grey, [lbox_width+i*col_width, j*row_hight, col_width, row_hight], 5)
+            boxes.append((rect,(j, i)))
 
     return boxes
 
@@ -63,6 +62,14 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            for i in range(len(boxes)):
+                if boxes[i][0].collidepoint(event.pos):
+                    idx, beat = boxes[i][1]
+                    print(f"Clicked on {instruments[idx]} at beat {beat}")
+                    # Here you can add sound playing logic
+                    pygame.draw.rect(screen, red, boxes[i][0])
 
     pygame.display.flip()
 
