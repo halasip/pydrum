@@ -17,8 +17,16 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("PyDrum")
 label_font = pygame.font.Font('freesansbold.ttf', 32)
 
+playing = True
+active_length = 0
+active_beat = 0
+beat_changed = False
+running = True
+
+
 boxes = []
 fps = 60
+bpm = 60  # Beats per minute
 beats = 8
 instruments = ["Kick", "Snare", "Hi-Hat", "Bass Drum", "Crash"]
 timer = pygame.time.Clock()
@@ -54,11 +62,12 @@ def draw_grid():
             rect = pygame.draw.rect(screen, light_grey, rect_dimensions, 5, 5)
             boxes.append((rect,(j, i)))
 
+    active_beat_rect = pygame.draw.rect(screen, green, [lbox_width + active_beat * col_width -5, 0, col_width +10, lbox_height], 10, 5)
+
     return boxes
 
 
 
-running = True
 while running:
     timer.tick(fps)
     screen.fill(black)
@@ -77,6 +86,19 @@ while running:
                     print(f"Clicked on {instruments[coords[0]]} at beat {coords[1]}")
                     # Here you can add sound playing logic
                     pygame.draw.rect(screen, red, boxes[i][0])
+
+    beat_length = fps * 60 // bpm
+    if playing:
+        if active_length < beat_length:
+            active_length += 1
+        else:
+            active_length = 0
+            if active_beat < beats - 1:
+                active_beat += 1
+                beat_changed = True
+            else:
+                active_beat = 0
+                beat_changed = False
 
     pygame.display.flip()
 
