@@ -45,7 +45,13 @@ def draw_grid():
         pygame.draw.line(screen, white, (0, j*row_hight), (250, j*row_hight), 5)
 
         for i in range(beats):
-            rect = pygame.draw.rect(screen, light_grey, [lbox_width+i*col_width, j*row_hight, col_width, row_hight], 5)
+            rect_dimensions = [lbox_width+i*col_width, j*row_hight, col_width, row_hight]
+            if clicked_boxes[j][i] == -1:
+                color = black
+            else:
+                color = red
+            pygame.draw.rect(screen, color, rect_dimensions, 0, 11)
+            rect = pygame.draw.rect(screen, light_grey, rect_dimensions, 5, 5)
             boxes.append((rect,(j, i)))
 
     return boxes
@@ -66,8 +72,9 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             for i in range(len(boxes)):
                 if boxes[i][0].collidepoint(event.pos):
-                    idx, beat = boxes[i][1]
-                    print(f"Clicked on {instruments[idx]} at beat {beat}")
+                    coords = boxes[i][1]
+                    clicked_boxes[coords[0]][coords[1]] *= -1
+                    print(f"Clicked on {instruments[coords[0]]} at beat {coords[1]}")
                     # Here you can add sound playing logic
                     pygame.draw.rect(screen, red, boxes[i][0])
 
