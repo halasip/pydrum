@@ -1,5 +1,7 @@
 import pygame
 from pygame import mixer
+import os
+
 
 pygame.init()
 
@@ -28,9 +30,20 @@ boxes = []
 fps = 60
 bpm = 60  # Beats per minute
 beats = 8
-instruments = ["Kick", "Snare", "Hi-Hat", "Bass Drum", "Crash"]
+instruments = []
 timer = pygame.time.Clock()
+
+# Import sound files
+# for each file in sounds directory, load the sound
+sounds = {}
+kitidx = 1 
+for file in sorted(os.listdir(f'sounds/kit{kitidx}')):
+    sound_name = file.split('.')[0]
+    sounds[sound_name] = mixer.Sound(os.path.join(f'sounds/kit{kitidx}', file))
+    instruments.append(sound_name.title())
+
 clicked_boxes = [[ -1 for _ in range(beats)] for _ in range(len(instruments))]
+
 
 def draw_grid():
     lbox_width = 250    
@@ -40,7 +53,7 @@ def draw_grid():
     bbox_width  = WIDTH
 
     left_box = pygame.draw.rect(screen, white, [0, 0, lbox_width, lbox_height], 5)
-    bottom_box = pygame.draw.rect(screen, white, [0, lbox_height, WIDTH, bbox_height], 5)
+    bottom_box = pygame.draw.rect(screen, white, [0, lbox_height, bbox_width, bbox_height], 5)
     boxes = []
     colors = [ white, red, blue, green, dark_grey, light_grey ]
 
@@ -62,6 +75,7 @@ def draw_grid():
             rect = pygame.draw.rect(screen, light_grey, rect_dimensions, 5, 5)
             boxes.append((rect,(j, i)))
 
+    # -5 and +10 to make the active beat rectangle wider and more visible
     active_beat_rect = pygame.draw.rect(screen, green, [lbox_width + active_beat * col_width -5, 0, col_width +10, lbox_height], 10, 5)
 
     return boxes
