@@ -28,21 +28,26 @@ running = True
 
 boxes = []
 fps = 60
-bpm = 60  # Beats per minute
+bpm = 120  # Beats per minute
 beats = 8
 instruments = []
 timer = pygame.time.Clock()
 
 # Import sound files
 # for each file in sounds directory, load the sound
-sounds = {}
+sounds = []
 kitidx = 1 
 for file in sorted(os.listdir(f'sounds/kit{kitidx}')):
     sound_name = file.split('.')[0]
-    sounds[sound_name] = mixer.Sound(os.path.join(f'sounds/kit{kitidx}', file))
+    sounds.append(mixer.Sound(os.path.join(f'sounds/kit{kitidx}', file)))
     instruments.append(sound_name.title())
 
 clicked_boxes = [[ -1 for _ in range(beats)] for _ in range(len(instruments))]
+
+def play_sound():
+    for i in range(len(clicked_boxes)):
+        if clicked_boxes[i][active_beat] == 1:
+            sounds[i].play()
 
 
 def draw_grid():
@@ -88,6 +93,10 @@ while running:
 
     boxes = draw_grid()
 
+    if beat_changed:
+        play_sound()
+        beat_changed = False
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -107,12 +116,11 @@ while running:
             active_length += 1
         else:
             active_length = 0
+            beat_changed = True
             if active_beat < beats - 1:
                 active_beat += 1
-                beat_changed = True
             else:
                 active_beat = 0
-                beat_changed = False
 
     pygame.display.flip()
 
