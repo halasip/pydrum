@@ -45,11 +45,11 @@ for file in sorted(os.listdir(f'sounds/kit{kitidx}')):
 
 pygame.mixer.set_num_channels(len(sounds)*3)
 
-clicked_boxes = [[ -1 for _ in range(beats)] for _ in range(len(instruments))]
+pads = [[ -1 for _ in range(beats)] for _ in range(len(instruments))]
 
 def play_sound():
-    for i in range(len(clicked_boxes)):
-        if clicked_boxes[i][active_beat] == 1:
+    for i in range(len(pads)):
+        if pads[i][active_beat] == 1:
             sounds[i].play()
 
 
@@ -75,7 +75,7 @@ def draw_grid():
 
         for i in range(beats):
             rect_dimensions = [lbox_width+i*col_width, j*row_hight, col_width, row_hight]
-            if clicked_boxes[j][i] == -1:
+            if pads[j][i] == -1:
                 color = black
             else:
                 color = red
@@ -108,27 +108,34 @@ while running:
 
 
     play_box = pygame.draw.rect(screen, dark_grey, [50, HEIGHT-150, 200, 100], 0, 5)
+    screen.blit(label_font.render("Play/Pause", True, white), (60, HEIGHT-130))
     if playing:
-        text = label_font.render("Play", True, white)
+        text = medium_font.render("Play", True, light_grey)
         if beat_changed:
             play_sound()
             beat_changed = False
     else:
-        text = label_font.render("Pause", True, white)
-    screen.blit(text, (75, HEIGHT-120))
+        text = medium_font.render("Pause", True, light_grey)
+    screen.blit(text, (60, HEIGHT-90))
 
     bpm_box = pygame.draw.rect(screen, dark_grey, [300, HEIGHT-150, 200, 100], 5, 5)
     bpm_text = medium_font.render(f"{bpm} bpm", True, white)
     screen.blit(bpm_text, (325, HEIGHT-130))
     bpm_change_rect = []
+    bpm_text_list = ["<<", "<", ">",  ">>"]
+    bpm_text_shift = [0,-10,-10,0]
     for i in range(4):
-        bpm_change_rect.append(pygame.draw.rect(screen, green, [300+i*50, HEIGHT-100, 50, 50], 5, 5))
-        match(i):
-            case(0): screen.blit(medium_font.render("<<", True, white), (310+i*50, HEIGHT-90))
-            case(1): screen.blit(medium_font.render("<",  True, white), (320+i*50, HEIGHT-90))
-            case(2): screen.blit(medium_font.render(">",  True, white), (320+i*50, HEIGHT-90))
-            case(3): screen.blit(medium_font.render(">>", True, white), (310+i*50, HEIGHT-90))
+        bpm_change_rect.append(pygame.draw.rect(screen, light_grey, [300+i*50, HEIGHT-100, 50, 50], 0, 0))
+        screen.blit(medium_font.render(bpm_text_list[i], True, white), (320+bpm_text_shift[i]+i*50, HEIGHT-90))
 
+
+    pygame.draw.rect(screen, dark_grey, [550, HEIGHT-150, 200, 100], 5, 5)
+    screen.blit(medium_font.render("Beat count", True, white), (560, HEIGHT-130))
+    screen.blit(label_font.render( f"{beats}"  , True, white), (610, HEIGHT-90))
+    beats_change_rect1 = pygame.draw.rect(screen, light_grey, [700, HEIGHT-100, 50, 50], 0, 5)
+    beats_change_rect2 = pygame.draw.rect(screen, light_grey, [700, HEIGHT-150, 50, 50], 0, 5)
+    screen.blit(medium_font.render("+1", True, white), (700, HEIGHT-100))
+    screen.blit(medium_font.render("-1", True, white), (700, HEIGHT-150))
 
 
 
@@ -137,6 +144,16 @@ while running:
             running = False
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+                        
+            for i in range(len(boxes)):
+                if boxes[i][0].collidepoint(event.pos):
+                    coords = boxes[i][1]
+                    pads[coords[0]][coords[1]] *= -1
+                    print(f"Clicked on {instruments[coords[0]]} at beat {coords[1]}")
+                    # Here you can add sound playing logic
+                    pygame.draw.rect(screen, red, boxes[i][0])
+
+        if event.type == pygame.MOUSEBUTTONUP:
             for i in range(len(bpm_change_rect)):
                 if bpm_change_rect[i].collidepoint(event.pos):
                     match(i):
@@ -144,16 +161,6 @@ while running:
                         case(1): bpm -= 1
                         case(2): bpm += 1
                         case(3): bpm += 5
-                        
-            for i in range(len(boxes)):
-                if boxes[i][0].collidepoint(event.pos):
-                    coords = boxes[i][1]
-                    clicked_boxes[coords[0]][coords[1]] *= -1
-                    print(f"Clicked on {instruments[coords[0]]} at beat {coords[1]}")
-                    # Here you can add sound playing logic
-                    pygame.draw.rect(screen, red, boxes[i][0])
-
-        if event.type == pygame.MOUSEBUTTONUP:
             if play_box.collidepoint(event.pos):
                 playing = not playing
                 if playing:
@@ -163,6 +170,15 @@ while running:
                 else:
                     active_length = 0
 
+            elif beats_change_rect1.collidepoint(event.pos):
+                beats += 1
+                for i in range(len(pads)):
+                    pads[i].append(-1)
+
+            elif beats_change_rect2.collidepoint(event.pos):
+                beats -= 1
+                for i in range(len(pads)):
+                    pads[i].pop(-1)
 
 
     beat_length = fps * 60 // bpm
