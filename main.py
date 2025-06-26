@@ -1,5 +1,6 @@
 import pygame
 from pygame import mixer
+import pyaml
 import os
 
 
@@ -137,13 +138,18 @@ while running:
     screen.blit(medium_font.render("-1", True, white), (715, HEIGHT-150+10))
 
 
+    save_pattern_box = pygame.draw.rect(screen, dark_grey, [800, HEIGHT-100, 200, 40], 0,5)
+    load_pattern_box = pygame.draw.rect(screen, dark_grey, [800, HEIGHT-150, 200, 40], 0,5)
+    screen.blit(medium_font.render("Save pattern", True, white), (810, HEIGHT-90))
+    screen.blit(medium_font.render("Load pattern", True, white), (810, HEIGHT-140))
+
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
                         
+
+        if event.type == pygame.MOUSEBUTTONUP:
             for i in range(len(boxes)):
                 if boxes[i][0].collidepoint(event.pos):
                     coords = boxes[i][1]
@@ -152,7 +158,6 @@ while running:
                     # Here you can add sound playing logic
                     pygame.draw.rect(screen, red, boxes[i][0])
 
-        if event.type == pygame.MOUSEBUTTONUP:
             for i in range(len(instrument_boxes)):
                 if instrument_boxes[i].collidepoint(event.pos):
                     active_instr[i] *= -1
@@ -164,6 +169,7 @@ while running:
                         case(1): bpm -= 1
                         case(2): bpm += 1
                         case(3): bpm += 5
+            
             if play_box.collidepoint(event.pos):
                 playing = not playing
                 if playing:
@@ -173,16 +179,35 @@ while running:
                 else:
                     active_length = 0
 
-            elif beats_change_rect1.collidepoint(event.pos):
+            if beats_change_rect1.collidepoint(event.pos):
                 beats += 1
                 for i in range(len(pads)):
                     pads[i].append(-1)
 
-            elif beats_change_rect2.collidepoint(event.pos):
+            if beats_change_rect2.collidepoint(event.pos):
                 beats -= 1
                 for i in range(len(pads)):
                     pads[i].pop(-1)
 
+
+            if save_pattern_box.collidepoint(event.pos):
+                pattern_name = input("Enter pattern name: ")
+                if pattern_name:
+                    with open(f"patterns/{pattern_name}.txt", "w") as f:
+                        for row in pads:
+                            f.write(" ".join(map(str, row)) + "\n")
+                    print(f"Pattern saved as {pattern_name}.txt")
+            
+            if load_pattern_box.collidepoint(event.pos):
+                pattern_name = input("Enter pattern name to load: ")
+                if pattern_name:
+                    try:
+                        with open(f"patterns/{pattern_name}.txt", "r") as f:
+                            for i, line in enumerate(f):
+                                pads[i] = list(map(int, line.strip().split()))
+                        print(f"Pattern {pattern_name} loaded.")
+                    except FileNotFoundError:
+                        print(f"Pattern {pattern_name} not found.")
 
     beat_length = fps * 60 // bpm
     if playing:
