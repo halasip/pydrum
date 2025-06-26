@@ -12,7 +12,9 @@ white = (255, 255, 255)
 red = (255, 0, 0)
 blue = (0, 0, 255)
 green = (0, 255, 0)
+gold = (255, 215, 0)
 dark_grey = (50, 50, 50)
+midgrey = (100, 100, 100)
 light_grey = (200, 200, 200)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -54,7 +56,7 @@ active_instr = [ 1 for _ in range(len(instruments)) ]
 
 def draw_grid():
     lbox_width = 250    
-    bbox_height = 250
+    bbox_height = 200
 
     lbox_height = HEIGHT - bbox_height
     bbox_width  = WIDTH
@@ -63,26 +65,25 @@ def draw_grid():
     bottom_box = pygame.draw.rect(screen, white, [0, lbox_height, bbox_width, bbox_height], 5)
     boxes = []
     instrument_boxes = []
-    colors = [ white, red, blue, green, dark_grey, light_grey ]
 
     row_hight = lbox_height // len(instruments)
     col_width = (WIDTH - lbox_width) // beats
 
     for j in range(len(instruments)):
-        if active_instr[j] != 1:
+        on = active_instr[j] == 1
+        if not on:
             pygame.draw.rect(screen, dark_grey,[0, j*row_hight, lbox_width, row_hight], 0, 0)
         instrument_boxes.append(pygame.draw.rect(screen, white ,[0, j*row_hight, lbox_width, row_hight], 5 , 0))
-        text = label_font.render(instruments[j], True, green)
-        screen.blit(text, (30, j*row_hight+30))
+        screen.blit(label_font.render(instruments[j], True, white if on else light_grey), (30, j*row_hight+30))
 
         for i in range(beats):
+            active = pads[j][i] == 1
             rect_dimensions = [lbox_width+i*col_width, j*row_hight, col_width, row_hight]
-            if pads[j][i] == -1:
-                color = black
+            if active:
+                pygame.draw.rect(screen, green if on else dark_grey, rect_dimensions, 0, 11)
             else:
-                color = red
-            pygame.draw.rect(screen, color, rect_dimensions, 0, 11)
-            rect = pygame.draw.rect(screen, light_grey, rect_dimensions, 2, 2)
+                pygame.draw.rect(screen, midgrey, rect_dimensions, 0, 11)
+            rect = pygame.draw.rect(screen, gold, rect_dimensions, 2, 2)
             boxes.append((rect,(j, i)))
 
     # -5 and +10 to make the active beat rectangle wider and more visible
