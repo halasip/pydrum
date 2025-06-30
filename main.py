@@ -116,12 +116,17 @@ def save_screen_render(saved_beats, pattern_name):
     return save_box, exit_box
 
 def load_screen_render(saved_beats, pattern_name):
+    patterns_box = []
     load_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2-50, 200, 100], 0, 5)
     exit_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2+60, 200, 40], 0, 5)
     screen.blit(label_font.render("Loading " + pattern_name, True, white), (WIDTH//2-90, HEIGHT//2-90))
+    screen.blit(label_font.render("Available beats", True, white), (25, 25))
+    for i,name in enumerate(saved_beats):
+        patterns_box.append(pygame.draw.rect(screen, white, [50, 70+i*50, 250, 40], 1, 0))
+        screen.blit(label_font.render("- "+name, True, green if pattern_name == name else white), (50, 75+i*50))
     screen.blit(medium_font.render("Load pattern", True, white if pattern_name in saved_beats.keys() else red), (WIDTH//2-70, HEIGHT//2-20))
     screen.blit(medium_font.render("Exit", True, white), (WIDTH//2-30, HEIGHT//2+70))
-    return load_box, exit_box
+    return load_box, exit_box, patterns_box
 
 
 playing = True
@@ -139,6 +144,7 @@ while running:
     boxes = []
     instrument_boxes = []
     bpm_change_rect = []
+    patterns_box = []
     
     timer.tick(fps)
     screen.fill(black)
@@ -149,7 +155,7 @@ while running:
 
 
     elif load_screen:
-        load_box, exit_box = load_screen_render(saved_beats, pattern_name)
+        load_box, exit_box, patterns_box = load_screen_render(saved_beats, pattern_name)
 
     else:
         boxes, instrument_boxes = draw_grid()
@@ -210,28 +216,37 @@ while running:
                         #     f.write(f"beat name: {name}, tempo: {saved_beats[pattern_name]}, instruments: {saved_beats[pattern_name]}, beats: {saved_beats[pattern_name]} pattern: {saved_beats[pattern_name]=}")
                         f.write(yaml.safe_dump(saved_beats, sort_keys=False))
                 pattern_name = ""
+                save_screen = False
             
             if load_screen and load_box.collidepoint(event.pos):
                 if pattern_name not in saved_beats.keys():
                     try:
                         with open(f"patterns/saved_beats.txt", "r") as f:
-                            saved_beats = yaml.safe_dump(f, sort_keys=False)
+                            saved_beats = yaml.safe_load(f)
                         print(f"Pattern saved_beats loaded.")
                     except FileNotFoundError:
                         print(f"Pattern saved_beats not found.")
-                
-                bpm = saved_beats[pattern_name]["tempo"]
-
-                active_instr = saved_beats[pattern_name]["instruments"].copy()
-                beats = saved_beats[pattern_name]["beats"]
-                pads = [item.copy() for item in saved_beats[pattern_name]["pattern"]]
-                print(saved_beats)
+                if pattern_name in saved_beats.keys():
+                    bpm = saved_beats[pattern_name]["tempo"]
+                    active_instr = saved_beats[pattern_name]["instruments"].copy()
+                    beats = saved_beats[pattern_name]["beats"]
+                    pads = [item.copy() for item in saved_beats[pattern_name]["pattern"]]
                 pattern_name = ""
 
             for i in range(len(boxes)):
                 if boxes[i][0].collidepoint(event.pos):
                     coords = boxes[i][1]
                     pads[coords[0]][coords[1]] *= -1
+            
+            for i in range(len(patterns_box)):
+                if patterns_box[i].collidepoint(event.pos):
+                    pattern_name = list(saved_beats.keys())[i]
+                    bpm = saved_beats[pattern_name]["tempo"]
+                    active_instr = saved_beats[pattern_name]["instruments"].copy()
+                    beats = saved_beats[pattern_name]["beats"]
+                    pads = [item.copy() for item in saved_beats[pattern_name]["pattern"]]
+                    pattern_name = ""
+                    load_screen = False
 
             for i in range(len(instrument_boxes)):
                 if instrument_boxes[i].collidepoint(event.pos):
