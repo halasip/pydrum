@@ -1,6 +1,6 @@
 import pygame
 from pygame import mixer
-import pyaml
+import yaml
 import os
 
 
@@ -107,17 +107,19 @@ def bpm_render(bpm):
         screen.blit(medium_font.render(bpm_text_list[i], True, white), (310+bpm_text_shift[i]+i*50, HEIGHT-90))
     return bpm_change_rect
 
-def save_screen_render():
+def save_screen_render(saved_beats, pattern_name):
     save_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2-50, 200, 100], 0, 5)
     exit_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2+60, 200, 40], 0, 5)
-    screen.blit(medium_font.render("Save pattern", True, white), (WIDTH//2-70, HEIGHT//2-20))
+    screen.blit(label_font.render("Saving " + pattern_name, True, white), (WIDTH//2-90, HEIGHT//2-90))
+    screen.blit(medium_font.render("Save pattern", True, white if pattern_name not in saved_beats.keys() else red), (WIDTH//2-70, HEIGHT//2-20))
     screen.blit(medium_font.render("Exit", True, white), (WIDTH//2-30, HEIGHT//2+70))
     return save_box, exit_box
 
-def load_screen_render():
+def load_screen_render(saved_beats, pattern_name):
     load_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2-50, 200, 100], 0, 5)
     exit_box = pygame.draw.rect(screen, dark_grey, [WIDTH//2-100, HEIGHT//2+60, 200, 40], 0, 5)
-    screen.blit(medium_font.render("Load pattern", True, white), (WIDTH//2-70, HEIGHT//2-20))
+    screen.blit(label_font.render("Loading " + pattern_name, True, white), (WIDTH//2-90, HEIGHT//2-90))
+    screen.blit(medium_font.render("Load pattern", True, white if pattern_name in saved_beats.keys() else red), (WIDTH//2-70, HEIGHT//2-20))
     screen.blit(medium_font.render("Exit", True, white), (WIDTH//2-30, HEIGHT//2+70))
     return load_box, exit_box
 
@@ -129,6 +131,8 @@ active_beat = 0
 beat_changed = False
 save_screen = False
 load_screen = False
+saved_beats = {}
+pattern_name = ""
 
 while running:
 
@@ -141,11 +145,11 @@ while running:
 
 
     if save_screen:
-        save_box, exit_box = save_screen_render()
+        save_box, exit_box = save_screen_render(saved_beats, pattern_name)
 
 
     elif load_screen:
-        load_box, exit_box = load_screen_render()
+        load_box, exit_box = load_screen_render(saved_beats, pattern_name)
 
     else:
         boxes, instrument_boxes = draw_grid()
@@ -176,22 +180,58 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-                        
+
+        if event.type == pygame.TEXTINPUT:
+            if save_screen or load_screen:
+                if event.text.isprintable():
+                    pattern_name += event.text
+                elif event.key == pygame.K_BACKSPACE:
+                    pattern_name = pattern_name[:-1]
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                running = False
 
         if event.type == pygame.MOUSEBUTTONUP:
-            if save_screen or load_screen:
-                if exit_box.collidepoint(event.pos):
-                    save_screen = False
-                    load_screen = False
-                break
+            if (save_screen or load_screen) and exit_box.collidepoint(event.pos):
+                save_screen = False
+                load_screen = False
+                
+            if save_screen and save_box.collidepoint(event.pos):
+                saved_beats[pattern_name]={}
+                
+                saved_beats[pattern_name]["tempo"]=bpm
+                saved_beats[pattern_name]["instruments"]=active_instr.copy()
+                saved_beats[pattern_name]["beats"]=beats
+                saved_beats[pattern_name]["pattern"]=[item.copy() for item in pads]
+                if pattern_name:
+                    with open(f"patterns/saved_beats.txt", "w") as f:
+                        # for name in saved_beats.keys():
+                        #     f.write(f"beat name: {name}, tempo: {saved_beats[pattern_name]}, instruments: {saved_beats[pattern_name]}, beats: {saved_beats[pattern_name]} pattern: {saved_beats[pattern_name]=}")
+                        f.write(yaml.safe_dump(saved_beats, sort_keys=False))
+                pattern_name = ""
+            
+            if load_screen and load_box.collidepoint(event.pos):
+                if pattern_name not in saved_beats.keys():
+                    try:
+                        with open(f"patterns/saved_beats.txt", "r") as f:
+                            saved_beats = yaml.safe_dump(f, sort_keys=False)
+                        print(f"Pattern saved_beats loaded.")
+                    except FileNotFoundError:
+                        print(f"Pattern saved_beats not found.")
+                
+                bpm = saved_beats[pattern_name]["tempo"]
+
+                active_instr = saved_beats[pattern_name]["instruments"].copy()
+                beats = saved_beats[pattern_name]["beats"]
+                pads = [item.copy() for item in saved_beats[pattern_name]["pattern"]]
+                print(saved_beats)
+                pattern_name = ""
 
             for i in range(len(boxes)):
                 if boxes[i][0].collidepoint(event.pos):
                     coords = boxes[i][1]
                     pads[coords[0]][coords[1]] *= -1
-                    print(f"Clicked on {instruments[coords[0]]} at beat {coords[1]}")
-                    # Here you can add sound playing logic
-                    pygame.draw.rect(screen, red, boxes[i][0])
 
             for i in range(len(instrument_boxes)):
                 if instrument_boxes[i].collidepoint(event.pos):
@@ -224,26 +264,12 @@ while running:
                 for i in range(len(pads)):
                     pads[i].pop(-1)
 
+
             if save_pattern_box.collidepoint(event.pos):
                 save_screen = True
-                # pattern_name = input("Enter pattern name: ")
-                # if pattern_name:
-                #     with open(f"patterns/{pattern_name}.txt", "w") as f:
-                #         for row in pads:
-                #             f.write(" ".join(map(str, row)) + "\n")
-                #     print(f"Pattern saved as {pattern_name}.txt")
-            
+
             if load_pattern_box.collidepoint(event.pos):
                 load_screen = True
-                # pattern_name = input("Enter pattern name to load: ")
-                # if pattern_name:
-                #     try:
-                #         with open(f"patterns/{pattern_name}.txt", "r") as f:
-                #             for i, line in enumerate(f):
-                #                 pads[i] = list(map(int, line.strip().split()))
-                #         print(f"Pattern {pattern_name} loaded.")
-                #     except FileNotFoundError:
-                #         print(f"Pattern {pattern_name} not found.")
 
     beat_length = fps * 60 // bpm
     if playing:
