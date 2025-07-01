@@ -1,9 +1,15 @@
 import pygame
 from pygame import mixer
+import pygame_gui
+from pygame_gui import UIManager
+from pygame_gui.elements import UIButton
+from pygame_gui.windows import UIFileDialog
+from pygame_gui.core.utility import create_resource_path
+
 import yaml
 import os
 
-WIDTH, HEIGHT = 1200, 800
+WIDTH, HEIGHT = 1600, 900
 
 black = (0, 0, 0)
 white = (255, 255, 255)
@@ -17,20 +23,29 @@ light_grey = (200, 200, 200)
 fps = 30
 class PyDrum:
 
-
-
     def __init__(self):
-        self.running = True
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("PyDrum")
 
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.ui_manager = UIManager((WIDTH, HEIGHT))
 
+        self.load_button = UIButton(relative_rect=pygame.Rect(-180, -60, 150, 30),
+                                    text='Select Pattern file',
+                                    manager=self.ui_manager,
+                                    anchors={'left': 'right',
+                                             'right': 'right',
+                                             'top': 'bottom',
+                                             'bottom': 'bottom'})
+
+        self.file_dialog = None
+
+        self.running = True
         self.label_font = pygame.font.Font('freesansbold.ttf', 32)
         self.medium_font = pygame.font.Font('freesansbold.ttf', 24)
         self.beats = 8
         self.timer = pygame.time.Clock()
-
+        self.patterns_file_path = "patterns/saved_beats.txt"
         # Import sound files
         # for each file in sounds directory, load the sound
         self.sounds = []
@@ -123,9 +138,9 @@ class PyDrum:
         load_box = pygame.draw.rect(self.screen, dark_grey, [WIDTH//2-100, HEIGHT//2-50, 200, 100], 0, 5)
         exit_box = pygame.draw.rect(self.screen, dark_grey, [WIDTH//2-100, HEIGHT//2+60, 200, 40], 0, 5)
         self.screen.blit(self.label_font.render("Loading " + pattern_name, True, white), (WIDTH//2-90, HEIGHT//2-90))
-        self.screen.blit(self.label_font.render("Available self.beats", True, white), (25, 25))
+        self.screen.blit(self.label_font.render("Available beats", True, white), (25, 25))
         for i,name in enumerate(saved_beats):
-            patterns_box.append(pygame.draw.rect(self.screen, white, [50, 70+i*50, 250, 40], 1, 0))
+            patterns_box.append(pygame.draw.rect(self.screen, black, [50, 70+i*50, 250, 40], 1, 0))
             self.screen.blit(self.label_font.render("- "+name, True, green if pattern_name == name else white), (50, 75+i*50))
         self.screen.blit(self.medium_font.render("Load pattern", True, white if pattern_name in saved_beats.keys() else red), (WIDTH//2-70, HEIGHT//2-20))
         self.screen.blit(self.medium_font.render("Exit", True, white), (WIDTH//2-30, HEIGHT//2+70))
@@ -149,10 +164,20 @@ class PyDrum:
             bpm_change_rect = []
             patterns_box = []
             
-            self.timer.tick(fps)
+            time_delta = self.timer.tick(fps) / 1000.0
             self.screen.fill(black)
 
-
+            beat_length = fps * 60 // bpm
+            if playing:
+                if active_length < beat_length:
+                    active_length += 1
+                else:
+                    active_length = 0
+                    beat_changed = True
+                    if active_beat < self.beats - 1:
+                        active_beat += 1
+                    else:
+                        active_beat = 0
             if save_screen:
                 save_box, exit_box = self.save_screen_render(saved_beats, pattern_name)
 
@@ -187,8 +212,35 @@ class PyDrum:
 
 
             for event in pygame.event.get():
+                self.ui_manager.process_events(event)
+
                 if event.type == pygame.QUIT:
                     self.running = False
+
+                if (event.type == pygame_gui.UI_BUTTON_PRESSED and
+                        event.ui_element == self.load_button):
+                    self.file_dialog = UIFileDialog(pygame.Rect(WIDTH//4, HEIGHT//4, WIDTH//2, HEIGHT//2),
+                                                    self.ui_manager,
+                                                    window_title='Select patterns file...',
+                                                    initial_file_path='patterns/',
+                                                    allow_picking_directories=True,
+                                                    allow_existing_files_only=True,
+                                                    allowed_suffixes={""})
+                    self.load_button.disable()
+                    break
+                
+                if self.file_dialog is not None:
+                    if event.type == pygame_gui.UI_FILE_DIALOG_PATH_PICKED:
+                        self.patterns_file_path = create_resource_path(event.text)
+                        
+
+                    elif (event.type == pygame_gui.UI_WINDOW_CLOSE
+                            and event.ui_element == self.file_dialog):
+                        self.load_button.enable()
+                        self.file_dialog = None
+
+                    else:
+                        continue
 
                 if event.type == pygame.TEXTINPUT:
                     if save_screen or load_screen:
@@ -210,7 +262,7 @@ class PyDrum:
                         saved_beats[pattern_name]["beats"]=self.beats
                         saved_beats[pattern_name]["pattern"]=[item.copy() for item in self.pads]
                         if pattern_name:
-                            with open(f"patterns/saved_beats.txt", "w") as f:
+                            with open(self.patterns_file_path, "w") as f:
                                 # for name in saved_beats.keys(self):
                                 #     f.write(f"beat name: {name}, tempo: {saved_beats[pattern_name]}, self.instruments: {saved_beats[pattern_name]}, self.beats: {saved_beats[pattern_name]} pattern: {saved_beats[pattern_name]=}")
                                 f.write(yaml.safe_dump(saved_beats, sort_keys=False))
@@ -220,7 +272,7 @@ class PyDrum:
                     if load_screen and load_box.collidepoint(event.pos):
                         if pattern_name not in saved_beats.keys():
                             try:
-                                with open(f"patterns/saved_beats.txt", "r") as f:
+                                with open(self.patterns_file_path, "r") as f:
                                     saved_beats = yaml.safe_load(f)
                                 print(f"Pattern saved_beats loaded.")
                             except FileNotFoundError:
@@ -286,20 +338,13 @@ class PyDrum:
                     if load_pattern_box.collidepoint(event.pos):
                         load_screen = True
 
-            beat_length = fps * 60 // bpm
-            if playing:
-                if active_length < beat_length:
-                    active_length += 1
-                else:
-                    active_length = 0
-                    beat_changed = True
-                    if active_beat < self.beats - 1:
-                        active_beat += 1
-                    else:
-                        active_beat = 0
 
-            pygame.display.flip()
 
+
+
+            self.ui_manager.update(time_delta)
+            self.ui_manager.draw_ui(self.screen)
+            pygame.display.update()
 
 
 if __name__ == '__main__':
