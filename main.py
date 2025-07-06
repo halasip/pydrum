@@ -1,10 +1,35 @@
 import pygame
+import math
+import numpy as np
 from pygame import mixer
 import pygame_gui
 from pygame_gui import UIManager
 from pygame_gui.elements import UIButton,UIWindow,UIImage
 from pygame_gui.windows import UIFileDialog,UIColourPickerDialog
 from pygame_gui.core.utility import create_resource_path
+
+import warnings
+from typing import Union, Tuple, Dict, Optional
+from pygame.event import custom_type
+
+
+from pygame_gui._constants import UI_BUTTON_PRESSED, UI_HORIZONTAL_SLIDER_MOVED
+from pygame_gui._constants import (
+    UI_COLOUR_PICKER_COLOUR_PICKED,
+    UI_TEXT_ENTRY_FINISHED,
+    UI_2D_SLIDER_MOVED,
+)
+from pygame_gui._constants import UI_COLOUR_PICKER_COLOUR_CHANNEL_CHANGED, OldType
+
+from pygame_gui.core.interfaces import (
+    IUIManagerInterface,
+    IContainerLikeInterface,
+    IUIElementInterface,
+)
+from pygame_gui.core.gui_type_hints import Coordinate, RectLike
+from pygame_gui.core import UIElement, UIContainer, ObjectID
+
+from pygame_gui.elements import UI2DSlider, UIHorizontalSlider, UILabel, UITextEntryLine
 
 import yaml
 import os
@@ -22,7 +47,7 @@ midgrey = (100, 100, 100)
 light_grey = (200, 200, 200)
 fps = 30
 
-
+UI_WAVEGEN_EDITOR_WAVE_CHANGED = custom_type()
 class WaveGenWindow(UIWindow):
     def __init__(self, rect, ui_manager = None, title =""):
         super().__init__(rect, ui_manager,
@@ -33,9 +58,63 @@ class WaveGenWindow(UIWindow):
                          always_on_top=True,
                          draggable=True
                         )
+        
+        self.current_sound = 1
+        self.cancel_button = UIButton(
+            relative_rect=pygame.Rect(-10, -40, -1, 30),
+            text="pygame-gui.Cancel",
+            manager=self.ui_manager,
+            container=self,
+            object_id="#cancel_button",
+            anchors={
+                "left": "right",
+                "right": "right",
+                "top": "bottom",
+                "bottom": "bottom",
+            },
+        )
 
-    def process_event(self, event):
+
+        self.ok_button = UIButton(
+            relative_rect=pygame.Rect(-10, -40, -1, 30),
+            text="pygame-gui.OK",
+            manager=self.ui_manager,
+            container=self,
+            object_id="#ok_button",
+            anchors={
+                "left": "right",
+                "right": "right",
+                "top": "bottom",
+                "bottom": "bottom",
+                "right_target": self.cancel_button,
+            },
+        )
+
+
+    def process_event(self, event: pygame.event.Event) -> bool:
         consumed_event = super().process_event(event)
+        if event.type == UI_BUTTON_PRESSED and event.ui_element == self.cancel_button:
+            self.kill()
+
+        if event.type == UI_BUTTON_PRESSED and event.ui_element == self.ok_button:
+            # old event - to be removed in 0.8.0
+            pygame.event.post(
+                pygame.event.Event(pygame.USEREVENT, 
+                            {
+                                "user_type": OldType(UI_WAVEGEN_EDITOR_WAVE_CHANGED),
+                                "sound": self.current_sound,
+                                "ui_element": self,
+                                "ui_object_id": self.most_specific_combined_id,
+                                }))
+            # new event
+            pygame.event.post(
+                pygame.event.Event(UI_WAVEGEN_EDITOR_WAVE_CHANGED, 
+                            {
+                                "sound": self.current_sound,
+                                "ui_element": self,
+                                "ui_object_id": self.most_specific_combined_id,
+                                }))
+            self.kill()
 
         return consumed_event
 
@@ -44,6 +123,7 @@ class PyDrum:
 
     def __init__(self):
         pygame.init()
+        mixer.pre_init(44100, 16)
         pygame.display.set_caption("PyDrum")
 
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
