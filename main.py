@@ -2,8 +2,8 @@ import pygame
 from pygame import mixer
 import pygame_gui
 from pygame_gui import UIManager
-from pygame_gui.elements import UIButton
-from pygame_gui.windows import UIFileDialog
+from pygame_gui.elements import UIButton,UIWindow,UIImage
+from pygame_gui.windows import UIFileDialog,UIColourPickerDialog
 from pygame_gui.core.utility import create_resource_path
 
 import yaml
@@ -21,6 +21,25 @@ dark_grey = (50, 50, 50)
 midgrey = (100, 100, 100)
 light_grey = (200, 200, 200)
 fps = 30
+
+
+class WaveGenWindow(UIWindow):
+    def __init__(self, rect, ui_manager = None, title =""):
+        super().__init__(rect, ui_manager,
+                         window_display_title=title,
+                         object_id='#scaling_window',
+                         resizable=True,
+                         visible=1,
+                         always_on_top=True,
+                         draggable=True
+                        )
+
+    def process_event(self, event):
+        consumed_event = super().process_event(event)
+
+        return consumed_event
+
+
 class PyDrum:
 
     def __init__(self):
@@ -30,7 +49,7 @@ class PyDrum:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.ui_manager = UIManager((WIDTH, HEIGHT))
 
-        self.load_button = UIButton(relative_rect=pygame.Rect(-180, -60, 150, 30),
+        self.load_button = UIButton(relative_rect=pygame.Rect(-180, -60, 150, 40),
                                     text='Select Pattern file',
                                     manager=self.ui_manager,
                                     anchors={'left': 'right',
@@ -38,7 +57,16 @@ class PyDrum:
                                              'top': 'bottom',
                                              'bottom': 'bottom'})
 
+        self.add_sound_button = UIButton(relative_rect=pygame.Rect(-180, -100, 150, 40),
+                                    text='Add new sound',
+                                    manager=self.ui_manager,
+                                    anchors={'left': 'right',
+                                             'right': 'right',
+                                             'top': 'bottom',
+                                             'bottom': 'bottom'})
+
         self.file_dialog = None
+        self.sound_dialog = None
 
         self.running = True
         self.label_font = pygame.font.Font('freesansbold.ttf', 32)
@@ -60,9 +88,6 @@ class PyDrum:
 
         self.pads = [[ -1 for _ in range(self.beats)] for _ in range(len(self.instruments))]
         self.active_instr = [ 1 for _ in range(len(self.instruments)) ]
-
-
-
 
     def draw_grid(self, active_beat):
         lbox_width = 250    
@@ -102,10 +127,10 @@ class PyDrum:
         # lower menu buttons
         return boxes, instrument_boxes
 
-    def beats_change_render(self,num_beats):
+    def beats_change_render(self):
         pygame.draw.rect(self.screen, dark_grey, [550, HEIGHT-150, 200, 100], 5, 5)
         self.screen.blit(self.medium_font.render("Beat count", True, white), (560, HEIGHT-130))
-        self.screen.blit(self.label_font.render( f"{num_beats}"  , True, white), (610, HEIGHT-90))
+        self.screen.blit(self.label_font.render( f"{self.beats}"  , True, white), (610, HEIGHT-90))
         beats_change_rect1 = pygame.draw.rect(self.screen, dark_grey, [700, HEIGHT-100, 50, 50], 0, 0)
         beats_change_rect2 = pygame.draw.rect(self.screen, dark_grey, [700, HEIGHT-150, 50, 50], 0, 0)
         self.screen.blit(self.medium_font.render("+1", True, white), (710, HEIGHT-100+10))
@@ -202,7 +227,7 @@ class PyDrum:
             
                 bpm_change_rect = self.bpm_render(bpm)
 
-                beats_change_rect1, beats_change_rect2 = self.beats_change_render(self.beats)
+                beats_change_rect1, beats_change_rect2 = self.beats_change_render()
 
 
                 save_pattern_box = pygame.draw.rect(self.screen, dark_grey, [800, HEIGHT-100, 200, 40], 0,5)
@@ -228,7 +253,6 @@ class PyDrum:
                                                     allowed_suffixes={""})
                     self.load_button.disable()
                     break
-                
                 if self.file_dialog is not None:
                     if event.type == pygame_gui.UI_FILE_DIALOG_PATH_PICKED:
                         self.patterns_file_path = create_resource_path(event.text)
@@ -241,6 +265,29 @@ class PyDrum:
 
                     else:
                         continue
+
+                
+                if (event.type == pygame_gui.UI_BUTTON_PRESSED and
+                        event.ui_element == self.add_sound_button):
+                    self.sound_dialog = WaveGenWindow(pygame.Rect(WIDTH//4, HEIGHT//4, WIDTH//2, HEIGHT//2),
+                                                    self.ui_manager,
+                                                    title='Create new sound...',)
+                    self.add_sound_button.disable()
+                    break
+
+                if self.sound_dialog is not None:
+                    # if event.type == pygame_gui.UI_FILE_DIALOG_PATH_PICKED:
+                    #     self.patterns_file_path = create_resource_path(event.text)
+                        
+
+                    if (event.type == pygame_gui.UI_WINDOW_CLOSE
+                            and event.ui_element == self.sound_dialog):
+                        self.add_sound_button.enable()
+                        self.sound_dialog = None
+                    else:
+                        continue
+
+
 
                 if event.type == pygame.TEXTINPUT:
                     if save_screen or load_screen:
