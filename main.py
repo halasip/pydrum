@@ -12,6 +12,7 @@ import warnings
 from typing import Union, Tuple, Dict, Optional
 from pygame.event import custom_type
 
+import matplotlib.pylab as plt
 
 from pygame_gui._constants import UI_BUTTON_PRESSED, UI_HORIZONTAL_SLIDER_MOVED
 from pygame_gui._constants import (
@@ -90,6 +91,38 @@ class WaveGenWindow(UIWindow):
             },
         )
 
+        self.play_button = UIButton(
+            relative_rect=pygame.Rect(10, -40, -1, 30),
+            text="Play",
+            manager=self.ui_manager,
+            container=self,
+            object_id="#play_button",
+            anchors={
+                "left": "left",
+                "right": "left",
+                "top": "bottom",
+                "bottom": "bottom",
+            },
+        )
+
+
+    def draw_waveform(self, wave, x_width, y_height):
+        
+        norm = np.max(np.fabs(wave))
+        coord_list = []
+        for i in range(x_width):
+            coord_list.append( (
+                i,
+                ( - y_height/2 * wave[i * wave.shape[0] // x_width ] // norm + y_height/2)
+                ))
+            # print((coord_list[i]))
+
+        graph_surface = pygame.surface.Surface((x_width, y_height))
+        graph_surface.fill(pygame.Color(0, 0, 0, 255))
+        pygame.draw.lines(graph_surface, green, False, coord_list, 1)
+
+        return graph_surface
+
 
     def process_event(self, event: pygame.event.Event) -> bool:
         consumed_event = super().process_event(event)
@@ -116,6 +149,36 @@ class WaveGenWindow(UIWindow):
                                 }))
             self.kill()
 
+        if event.type == UI_BUTTON_PRESSED and event.ui_element == self.play_button:
+
+            x_width = 600
+            y_height = 200
+
+            num_samples = int(round( 1 * 44100 ))
+            x = np.linspace(0, 440*2*np.pi, num_samples)
+            
+            amplitude = 2 ** (16 -1) -1 
+            soundbuffer = np.round(amplitude * np.sin(x)).astype(np.int16)
+
+            graph_surface = self.draw_waveform(soundbuffer, x_width, y_height)
+ 
+            self.sat_value_square = UIImage(
+                pygame.Rect(
+                    20,
+                    20,
+                    x_width,
+                    y_height,
+                ),
+                image_surface=graph_surface,
+                manager=self.ui_manager,
+                container=self,
+            )
+
+
+            sound = pygame.sndarray.make_sound(np.vstack((soundbuffer, soundbuffer)).T)
+            sound.play(loops=1, maxtime=int(1000))
+                
+                
         return consumed_event
 
 
