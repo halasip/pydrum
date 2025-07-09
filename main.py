@@ -156,9 +156,21 @@ class WaveGenWindow(UIWindow):
 
             num_samples = int(round( 1 * 44100 ))
             x = np.linspace(0, 440*2*np.pi, num_samples)
+
+            attack  = 0.3
+            decay   = 0.3
+            sustain = 0.3
+            release = 0.3
+
+            envelope = np.concatenate((
+                np.linspace(0,      1,int(round(attack * num_samples))),
+                np.linspace(1,sustain,int(round(decay * num_samples))),
+                [ sustain for _ in range(int(round((1 - attack - decay - release) * num_samples)))],
+                np.linspace(sustain,0,int(round(release * num_samples))),
+            ))
             
             amplitude = 2 ** (16 -1) -1 
-            soundbuffer = np.round(amplitude * np.sin(x)).astype(np.int16)
+            soundbuffer = np.round(amplitude * np.sin(x) * envelope).astype(np.int16)
 
             graph_surface = self.draw_waveform(soundbuffer, x_width, y_height)
  
@@ -168,6 +180,20 @@ class WaveGenWindow(UIWindow):
                     20,
                     x_width,
                     y_height,
+                ),
+                image_surface=graph_surface,
+                manager=self.ui_manager,
+                container=self,
+            )
+
+            graph_surface = self.draw_waveform(envelope - 0.5, 100, 100)
+ 
+            self.sat_value_square = UIImage(
+                pygame.Rect(
+                    20,
+                    y_height + 40,
+                    100,
+                    100,
                 ),
                 image_surface=graph_surface,
                 manager=self.ui_manager,
